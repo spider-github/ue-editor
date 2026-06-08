@@ -1,0 +1,13 @@
+{
+  "name": "vue2-ueditor-plus-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:demo": "pnpm --filter demo-vue2 dev",
+    "lint": "pnpm -r lint",
+    "copy-assets": "pnpm --filter vue2-ueditor-plus-editor copy-assets",
+    "publish:all": "node ./scripts/publish-all.js"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "demo-vue2",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "echo lint skipped"
+  },
+  "dependencies": {
+    "vue2-ueditor-plus-editor": "workspace:*",
+    "vue": "^2.6.12"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue2": "^2.3.3",
+    "vite": "^5.4.8",
+    "vue-template-compiler": "^2.6.12"
+  }
+}

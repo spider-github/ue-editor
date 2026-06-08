@@ -1,0 +1,28 @@
+{
+  "name": "ueditor-plus-assets",
+  "version": "0.1.0",
+  "description": "Static assets for UEditorPlus",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node -e \"console.log('assets package: no build needed')\"",
+    "lint": "echo lint skipped"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ueditor",
+    "ueditor-plus",
+    "static-assets"
+  ],
+  "license": "MIT"
+}

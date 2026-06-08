@@ -1,0 +1,55 @@
+{
+  "name": "vue2-ueditor-plus-editor",
+  "version": "0.1.0",
+  "description": "Vue 2 wrapper for UEditorPlus with asset copy CLI",
+  "main": "dist/index.umd.js",
+  "module": "dist/index.es.js",
+  "unpkg": "dist/index.umd.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js",
+      "default": "./dist/index.umd.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "bin": {
+    "vue2-ueditor-plus": "bin/vue2-ueditor-plus.js"
+  },
+  "scripts": {
+    "build": "vite build",
+    "lint": "echo lint skipped",
+    "copy-assets": "node ./bin/vue2-ueditor-plus.js copy-assets public/static/ueditor-plus",
+    "prepack": "node ./scripts/prepare-package-json.js",
+    "postpack": "node ./scripts/restore-package-json.js"
+  },
+  "peerDependencies": {
+    "vue": "^2.6.12"
+  },
+  "dependencies": {
+    "ueditor-plus-assets": "workspace:*",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue2": "^2.3.3",
+    "vite": "^5.4.8",
+    "vue": "^2.6.12",
+    "vue-template-compiler": "^2.6.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "vue2",
+    "ueditor",
+    "ueditor-plus",
+    "rich-text-editor"
+  ],
+  "license": "MIT"
+}
