@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { UeEditor } from 'vue2-ueditor-plus-editor'
+import { UeEditor } from 'vue2-ueditor-plus-editor';
 
 export default {
   name: 'App',

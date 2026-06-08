@@ -8,6 +8,7 @@
     "dev:demo": "pnpm --filter demo-vue2 dev",
     "lint": "pnpm -r lint",
     "copy-assets": "pnpm --filter vue2-ueditor-plus-editor copy-assets",
-    "publish:all": "node ./scripts/publish-all.js"
+    "publish:all": "node ./scripts/publish-all.js",
+    "publish:dry-run": "node ./scripts/publish-all.js --dry-run"
   }
 }
