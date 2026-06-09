@@ -6,11 +6,236 @@
 
 <script>
 import axios from 'axios'
+import hljs from 'highlight.js/lib/highlight'
+import java from 'highlight.js/lib/languages/java'
+import xml from 'highlight.js/lib/languages/xml'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import json from 'highlight.js/lib/languages/json'
+import php from 'highlight.js/lib/languages/php'
+import css from 'highlight.js/lib/languages/css'
+import sql from 'highlight.js/lib/languages/sql'
+import bash from 'highlight.js/lib/languages/bash'
+import python from 'highlight.js/lib/languages/python'
+import go from 'highlight.js/lib/languages/go'
+import rust from 'highlight.js/lib/languages/rust'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+import powershell from 'highlight.js/lib/languages/powershell'
+import cs from 'highlight.js/lib/languages/cs'
+import nginx from 'highlight.js/lib/languages/nginx'
+import markdown from 'highlight.js/lib/languages/markdown'
+
+hljs.registerLanguage('java', java)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('php', php)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('rust', rust)
+hljs.registerLanguage('plaintext', plaintext)
+hljs.registerLanguage('powershell', powershell)
+hljs.registerLanguage('csharp', cs)
+hljs.registerLanguage('nginx', nginx)
+hljs.registerLanguage('markdown', markdown)
 
 const loadedResources = {
   css: {},
   scripts: {},
 }
+
+const UEDITOR_CODE_BLOCK_IFRAME_STYLES = `
+body :not(pre) > code,
+body p code,
+body li code,
+body td code,
+body th code,
+body blockquote code {
+  display: inline-block;
+  margin: 0 3px;
+  padding: 3px 6px;
+  color: inherit;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.92em;
+}
+
+body p,
+body h1,
+body h2,
+body h3,
+body h4,
+body h5,
+body h6,
+body table,
+body pre,
+body blockquote,
+body ul,
+body ol,
+body hr {
+  margin: 10px 0;
+}
+
+body blockquote {
+  display: block;
+  padding: 5px 10px;
+  background-color: #f8fafc;
+  border-left: 4px solid #d0e5f2;
+}
+
+body pre {
+  padding: 0;
+  overflow-x: auto;
+  background: transparent;
+  border-radius: 8px;
+  line-height: 1.6;
+  white-space: pre;
+  box-sizing: border-box;
+}
+
+body pre > code,
+body pre > code.hljs {
+  display: block;
+  margin: 0;
+  padding: 1em;
+  color: #24292f;
+  background-color: #f6f8fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre;
+  word-break: normal;
+  word-spacing: normal;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  tab-size: 4;
+  box-sizing: border-box;
+}
+
+body pre > code.hljs {
+  color: #383a42;
+  background: #fafafa;
+}
+
+body pre > code .hljs-comment,
+body pre > code .hljs-quote {
+  color: #a0a1a7;
+  font-style: italic;
+}
+
+body pre > code .hljs-doctag,
+body pre > code .hljs-keyword,
+body pre > code .hljs-formula {
+  color: #a626a4;
+}
+
+body pre > code .hljs-section,
+body pre > code .hljs-name,
+body pre > code .hljs-selector-tag,
+body pre > code .hljs-deletion,
+body pre > code .hljs-subst {
+  color: #e45649;
+}
+
+body pre > code .hljs-literal,
+body pre > code .hljs-string,
+body pre > code .hljs-regexp,
+body pre > code .hljs-addition,
+body pre > code .hljs-attribute,
+body pre > code .hljs-meta .hljs-string {
+  color: #50a14f;
+}
+
+body pre > code .hljs-attr,
+body pre > code .hljs-variable,
+body pre > code .hljs-template-variable,
+body pre > code .hljs-type,
+body pre > code .hljs-selector-class,
+body pre > code .hljs-selector-attr,
+body pre > code .hljs-selector-pseudo,
+body pre > code .hljs-number {
+  color: #986801;
+}
+
+body pre > code .hljs-symbol,
+body pre > code .hljs-bullet,
+body pre > code .hljs-link,
+body pre > code .hljs-meta,
+body pre > code .hljs-selector-id,
+body pre > code .hljs-title {
+  color: #4078f2;
+}
+
+body pre > code .hljs-built_in,
+body pre > code .hljs-title.class_,
+body pre > code .hljs-class .hljs-title {
+  color: #c18401;
+}
+
+body pre > code .hljs-emphasis {
+  font-style: italic;
+}
+
+body pre > code .hljs-strong {
+  font-weight: 700;
+}
+
+body a {
+  color: #0d6efd;
+  text-decoration: none;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+body a:hover,
+body a:focus {
+  text-decoration: underline;
+}
+
+body img {
+  max-width: 100%;
+}
+
+body table {
+  caption-side: bottom;
+  border-collapse: collapse;
+  display: table;
+  margin-bottom: 10px;
+}
+
+body table td,
+body table th {
+  padding: 5px 10px;
+  border: 1px solid #DDD;
+  vertical-align: top;
+}
+
+body table.noBorderTable td,
+body table.noBorderTable th,
+body table.noBorderTable caption {
+  border: 1px dashed #ddd !important;
+}
+
+body table tr.firstRow th,
+body table tr.firstRow td {
+  background-color: #f8fafc;
+}
+
+body ul,
+body ol {
+  padding-left: 32px;
+}
+`
 
 function appendStyleOnce(href) {
   if (!href || loadedResources.css[href]) return
@@ -34,6 +259,36 @@ function loadScriptOnce(src) {
   })
 
   return loadedResources.scripts[src]
+}
+
+function mergeStyleText(baseStyle, extraStyle) {
+  const base = typeof baseStyle === 'string' ? baseStyle.trim() : ''
+  const extra = typeof extraStyle === 'string' ? extraStyle.trim() : ''
+
+  if (!extra) return base
+  if (!base) return extra
+  if (base.includes(extra)) return base
+  return `${base}\n${extra}`
+}
+
+function normalizeHighlightLanguage(lang) {
+  if (!lang) return ''
+  const normalized = String(lang).toLowerCase()
+  const aliasMap = {
+    js: 'javascript',
+    jscript: 'javascript',
+    plain: 'plaintext',
+    text: 'plaintext',
+    txt: 'plaintext',
+    shell: 'bash',
+    sh: 'bash',
+    ps: 'powershell',
+    'c#': 'csharp',
+    cs: 'csharp',
+    html: 'xml',
+    md: 'markdown',
+  }
+  return aliasMap[normalized] || normalized
 }
 
 export default {
@@ -92,6 +347,7 @@ export default {
       lastEmittedValue: null,
       sourceEl: null,
       initialHtml: '',
+      highlightTimer: null,
     }
   },
   watch: {
@@ -127,6 +383,143 @@ export default {
     this.destroyEditor()
   },
   methods: {
+    isElementNode(node) {
+      return !!node && node.nodeType === 1
+    },
+    extractCodeText(node) {
+      if (!node) return ''
+      if (node.nodeType === 3) return node.nodeValue || ''
+      if (node.nodeType !== 1) return ''
+      const tagName = node.tagName ? node.tagName.toUpperCase() : ''
+      if (tagName === 'BR') return '\n'
+
+      let text = ''
+      const childNodes = node.childNodes ? Array.from(node.childNodes) : []
+      childNodes.forEach((childNode) => {
+        text += this.extractCodeText(childNode)
+      })
+      return text
+    },
+    restoreCopiedCodeBlocksHtml(html) {
+      if (typeof html !== 'string' || !html) return html
+      const div = document.createElement('div')
+      div.innerHTML = html
+
+      div.querySelectorAll('pre code').forEach((codeElement) => {
+        if (!this.isElementNode(codeElement)) return
+        const preElement = typeof codeElement.closest === 'function' ? codeElement.closest('pre') : null
+        const encodedRawCode =
+          codeElement.getAttribute('data-raw-code') ||
+          (this.isElementNode(preElement) ? preElement.getAttribute('data-raw-code') : '') ||
+          ''
+        if (!encodedRawCode) return
+
+        let rawText = ''
+        try {
+          rawText = decodeURIComponent(encodedRawCode)
+        } catch (error) {
+          rawText = ''
+        }
+        if (!rawText) return
+
+        const language = this.getCodeLanguageFromElement(codeElement)
+        codeElement.textContent = rawText
+        codeElement.className = language ? `language-${language}` : ''
+        codeElement.setAttribute('data-code-lang', language || '')
+        codeElement.removeAttribute('data-raw-code')
+
+        if (this.isElementNode(preElement)) {
+          preElement.className = language ? `language-${language}` : ''
+          preElement.setAttribute('data-code-lang', language || '')
+          preElement.removeAttribute('data-raw-code')
+        }
+      })
+
+      return div.innerHTML
+    },
+    getEditorDocument() {
+      if (!this.editor || !this.editor.document) return null
+      return this.editor.document
+    },
+    getCodeLanguageFromElement(codeElement) {
+      if (!this.isElementNode(codeElement)) return ''
+      const dataLang = codeElement.getAttribute('data-code-lang')
+      if (dataLang) return normalizeHighlightLanguage(dataLang)
+
+      const className = codeElement.className || ''
+      let match = String(className).match(/(?:^|\s)language-([^\s]+)/)
+      if (match && match[1]) return normalizeHighlightLanguage(match[1])
+
+      match = String(className).match(/brush:([^;]+)/)
+      return match && match[1] ? normalizeHighlightLanguage(match[1]) : ''
+    },
+    highlightCodeElement(codeElement) {
+      if (!this.isElementNode(codeElement)) return
+
+      const rawText = this.extractCodeText(codeElement)
+        .replace(/\u00a0/g, ' ')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+      const language = this.getCodeLanguageFromElement(codeElement)
+      const preElement = typeof codeElement.closest === 'function' ? codeElement.closest('pre') : null
+
+      if (this.isElementNode(preElement)) {
+        preElement.setAttribute('data-code-lang', language || '')
+        preElement.className = language ? `language-${language}` : ''
+      }
+      codeElement.setAttribute('data-code-lang', language || '')
+      codeElement.textContent = rawText
+
+      if (!rawText) return
+
+      codeElement.className = language ? `language-${language}` : ''
+
+      if (language && hljs.getLanguage(language)) {
+        if (typeof hljs.highlightElement === 'function') {
+          hljs.highlightElement(codeElement)
+        } else if (typeof hljs.highlightBlock === 'function') {
+          hljs.highlightBlock(codeElement)
+        }
+      }
+    },
+    highlightAllCodeBlocks() {
+      const doc = this.getEditorDocument()
+      if (!doc) return
+      doc.querySelectorAll('pre code').forEach((codeElement) => {
+        this.highlightCodeElement(codeElement)
+      })
+    },
+    highlightCurrentCodeBlock() {
+      const doc = this.getEditorDocument()
+      if (!doc || !this.editor || !this.editor.selection) return
+      const range = this.editor.selection.getRange()
+      const startContainer = range && range.startContainer
+      const element =
+        startContainer && startContainer.nodeType === 1
+          ? startContainer
+          : startContainer && startContainer.parentNode
+      if (!this.isElementNode(element)) return
+      const codeElement = typeof element.closest === 'function' ? element.closest('code') : null
+      this.highlightCodeElement(codeElement)
+    },
+    scheduleHighlightAllCodeBlocks(delay = 0) {
+      if (this.highlightTimer) {
+        clearTimeout(this.highlightTimer)
+      }
+      this.highlightTimer = setTimeout(() => {
+        this.highlightTimer = null
+        this.highlightAllCodeBlocks()
+      }, delay)
+    },
+    scheduleHighlightCurrentCodeBlock(delay = 0) {
+      if (this.highlightTimer) {
+        clearTimeout(this.highlightTimer)
+      }
+      this.highlightTimer = setTimeout(() => {
+        this.highlightTimer = null
+        this.highlightCurrentCodeBlock()
+      }, delay)
+    },
     normalizeMaybeFunctionString(value) {
       if (typeof value !== 'string') return ''
       const trimmed = value.trim()
@@ -335,6 +728,10 @@ export default {
 
       config.iframeCssUrl = this.normalizeMaybeFunctionString(config.iframeCssUrl)
       config.iframeCssStyles = this.normalizeMaybeFunctionString(config.iframeCssStyles)
+      config.initialStyle = mergeStyleText(
+        typeof config.initialStyle === 'string' ? config.initialStyle : '',
+        UEDITOR_CODE_BLOCK_IFRAME_STYLES,
+      )
       if (!config.iframeCssUrl) {
         config.iframeCssUrl = `${baseUrl}themes/iframe.css`
       }
@@ -432,11 +829,20 @@ export default {
         initialFrameHeight: this.getFrameHeight(),
         ...this.config,
       })
+      options.initialStyle = mergeStyleText(
+        typeof options.initialStyle === 'string' ? options.initialStyle : '',
+        UEDITOR_CODE_BLOCK_IFRAME_STYLES,
+      )
       if (!options.iframeCssUrl) {
         options.iframeCssUrl = `${this.getUeditorBaseUrl()}themes/iframe.css`
       }
       if (typeof options.iframeCssStyles !== 'string') {
         options.iframeCssStyles = ''
+      }
+
+      window.UEDITOR_CONFIG = {
+        ...(window.UEDITOR_CONFIG || {}),
+        ...options,
       }
 
       this.editor = window.UE.getEditor(this.editorId, options)
@@ -453,6 +859,8 @@ export default {
           this.editor.setEnabled()
         }
 
+        this.scheduleHighlightAllCodeBlocks(30)
+
         this.editor.addListener('contentChange', () => {
           const html = this.editor.getContent()
           this.lastEmittedValue = html
@@ -460,11 +868,45 @@ export default {
           this.$emit('change', html)
         })
 
+        this.editor.addListener('aftersetcontent', () => {
+          this.$nextTick(() => {
+            this.scheduleHighlightAllCodeBlocks(50)
+          })
+        })
+
+        this.editor.addListener('beforepaste', (type, html) => {
+          if (!html || typeof html.html !== 'string') return
+          html.html = this.restoreCopiedCodeBlocksHtml(html.html)
+        })
+
+        this.editor.addListener('afterpaste', () => {
+          this.$nextTick(() => {
+            this.scheduleHighlightAllCodeBlocks(50)
+          })
+        })
+
+        this.editor.addListener('afterinserthtml', () => {
+          this.$nextTick(() => {
+            this.scheduleHighlightAllCodeBlocks(50)
+          })
+        })
+
+        this.editor.addListener('afterexeccommand', (type, cmd) => {
+          if (String(cmd).toLowerCase() !== 'insertcode') return
+          this.$nextTick(() => {
+            this.scheduleHighlightCurrentCodeBlock(30)
+          })
+        })
+
         this.$emit('ready', this.editor)
       })
     },
     destroyEditor() {
       try {
+        if (this.highlightTimer) {
+          clearTimeout(this.highlightTimer)
+          this.highlightTimer = null
+        }
         if (this.editor && typeof this.editor.destroy === 'function') {
           this.editor.destroy()
         }
@@ -498,5 +940,22 @@ export default {
 <style scoped>
 .ue-editor {
   width: 100%;
+}
+</style>
+
+<style>
+.ue-editor .edui-editor {
+  position: static !important;
+  z-index: auto !important;
+  width: auto !important;
+
+  > div[style^='height']:nth-child(1) {
+    display: none;
+  }
+
+  .edui-editor-iframeholder {
+    position: static !important;
+    z-index: auto !important;
+  }
 }
 </style>
