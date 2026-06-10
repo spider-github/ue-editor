@@ -5,237 +5,29 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import axios from 'axios'
-import hljs from 'highlight.js/lib/highlight'
-import java from 'highlight.js/lib/languages/java'
-import xml from 'highlight.js/lib/languages/xml'
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import json from 'highlight.js/lib/languages/json'
-import php from 'highlight.js/lib/languages/php'
-import css from 'highlight.js/lib/languages/css'
-import sql from 'highlight.js/lib/languages/sql'
-import bash from 'highlight.js/lib/languages/bash'
-import python from 'highlight.js/lib/languages/python'
-import go from 'highlight.js/lib/languages/go'
-import rust from 'highlight.js/lib/languages/rust'
-import plaintext from 'highlight.js/lib/languages/plaintext'
-import powershell from 'highlight.js/lib/languages/powershell'
-import cs from 'highlight.js/lib/languages/cs'
-import nginx from 'highlight.js/lib/languages/nginx'
-import markdown from 'highlight.js/lib/languages/markdown'
+import UeRichTextPreview from './UeRichTextPreview.vue'
+import {
+  buildUeRichTextRenderStyles,
+  ensureUeRichTextLanguages,
+  getCodeLanguageFromElement,
+  highlightCodeBlocks,
+  highlightCodeElement,
+  isElementNode,
+  normalizeUeRichTextHtml,
+  restoreCopiedCodeBlocksHtml,
+} from './ueRichTextRender'
 
-hljs.registerLanguage('java', java)
-hljs.registerLanguage('xml', xml)
-hljs.registerLanguage('html', xml)
-hljs.registerLanguage('javascript', javascript)
-hljs.registerLanguage('typescript', typescript)
-hljs.registerLanguage('json', json)
-hljs.registerLanguage('php', php)
-hljs.registerLanguage('css', css)
-hljs.registerLanguage('sql', sql)
-hljs.registerLanguage('bash', bash)
-hljs.registerLanguage('python', python)
-hljs.registerLanguage('go', go)
-hljs.registerLanguage('rust', rust)
-hljs.registerLanguage('plaintext', plaintext)
-hljs.registerLanguage('powershell', powershell)
-hljs.registerLanguage('csharp', cs)
-hljs.registerLanguage('nginx', nginx)
-hljs.registerLanguage('markdown', markdown)
+ensureUeRichTextLanguages()
 
 const loadedResources = {
   css: {},
   scripts: {},
 }
+const loadedLanguagePacks = {}
 
-const UEDITOR_CODE_BLOCK_IFRAME_STYLES = `
-body :not(pre) > code,
-body p code,
-body li code,
-body td code,
-body th code,
-body blockquote code {
-  display: inline-block;
-  margin: 0 3px;
-  padding: 3px 6px;
-  color: inherit;
-  background-color: #f3f4f6;
-  border-radius: 4px;
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 0.92em;
-}
-
-body p,
-body h1,
-body h2,
-body h3,
-body h4,
-body h5,
-body h6,
-body table,
-body pre,
-body blockquote,
-body ul,
-body ol,
-body hr {
-  margin: 10px 0;
-}
-
-body blockquote {
-  display: block;
-  padding: 5px 10px;
-  background-color: #f8fafc;
-  border-left: 4px solid #d0e5f2;
-}
-
-body pre {
-  padding: 0;
-  overflow-x: auto;
-  background: transparent;
-  border-radius: 8px;
-  line-height: 1.6;
-  white-space: pre;
-  box-sizing: border-box;
-}
-
-body pre > code,
-body pre > code.hljs {
-  display: block;
-  margin: 0;
-  padding: 1em;
-  color: #24292f;
-  background-color: #f6f8fa;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  text-align: left;
-  white-space: pre;
-  word-break: normal;
-  word-spacing: normal;
-  word-wrap: normal;
-  overflow-wrap: normal;
-  hyphens: none;
-  tab-size: 4;
-  box-sizing: border-box;
-}
-
-body pre > code.hljs {
-  color: #383a42;
-  background: #fafafa;
-}
-
-body pre > code .hljs-comment,
-body pre > code .hljs-quote {
-  color: #a0a1a7;
-  font-style: italic;
-}
-
-body pre > code .hljs-doctag,
-body pre > code .hljs-keyword,
-body pre > code .hljs-formula {
-  color: #a626a4;
-}
-
-body pre > code .hljs-section,
-body pre > code .hljs-name,
-body pre > code .hljs-selector-tag,
-body pre > code .hljs-deletion,
-body pre > code .hljs-subst {
-  color: #e45649;
-}
-
-body pre > code .hljs-literal,
-body pre > code .hljs-string,
-body pre > code .hljs-regexp,
-body pre > code .hljs-addition,
-body pre > code .hljs-attribute,
-body pre > code .hljs-meta .hljs-string {
-  color: #50a14f;
-}
-
-body pre > code .hljs-attr,
-body pre > code .hljs-variable,
-body pre > code .hljs-template-variable,
-body pre > code .hljs-type,
-body pre > code .hljs-selector-class,
-body pre > code .hljs-selector-attr,
-body pre > code .hljs-selector-pseudo,
-body pre > code .hljs-number {
-  color: #986801;
-}
-
-body pre > code .hljs-symbol,
-body pre > code .hljs-bullet,
-body pre > code .hljs-link,
-body pre > code .hljs-meta,
-body pre > code .hljs-selector-id,
-body pre > code .hljs-title {
-  color: #4078f2;
-}
-
-body pre > code .hljs-built_in,
-body pre > code .hljs-title.class_,
-body pre > code .hljs-class .hljs-title {
-  color: #c18401;
-}
-
-body pre > code .hljs-emphasis {
-  font-style: italic;
-}
-
-body pre > code .hljs-strong {
-  font-weight: 700;
-}
-
-body a {
-  color: #0d6efd;
-  text-decoration: none;
-  cursor: pointer;
-  word-break: break-word;
-}
-
-body a:hover,
-body a:focus {
-  text-decoration: underline;
-}
-
-body img {
-  max-width: 100%;
-}
-
-body table {
-  caption-side: bottom;
-  border-collapse: collapse;
-  display: table;
-  margin-bottom: 10px;
-}
-
-body table td,
-body table th {
-  padding: 5px 10px;
-  border: 1px solid #DDD;
-  vertical-align: top;
-}
-
-body table.noBorderTable td,
-body table.noBorderTable th,
-body table.noBorderTable caption {
-  border: 1px dashed #ddd !important;
-}
-
-body table tr.firstRow th,
-body table tr.firstRow td {
-  background-color: #f8fafc;
-}
-
-body ul,
-body ol {
-  padding-left: 32px;
-}
-`
+const UEDITOR_CODE_BLOCK_IFRAME_STYLES = buildUeRichTextRenderStyles('body')
 
 function appendStyleOnce(href) {
   if (!href || loadedResources.css[href]) return
@@ -271,24 +63,36 @@ function mergeStyleText(baseStyle, extraStyle) {
   return `${base}\n${extra}`
 }
 
-function normalizeHighlightLanguage(lang) {
-  if (!lang) return ''
-  const normalized = String(lang).toLowerCase()
-  const aliasMap = {
-    js: 'javascript',
-    jscript: 'javascript',
-    plain: 'plaintext',
-    text: 'plaintext',
-    txt: 'plaintext',
-    shell: 'bash',
-    sh: 'bash',
-    ps: 'powershell',
-    'c#': 'csharp',
-    cs: 'csharp',
-    html: 'xml',
-    md: 'markdown',
+function cacheLoadedLanguagePacks() {
+  if (!window.UE || !window.UE.I18N || typeof window.UE.I18N !== 'object') return
+  Object.keys(window.UE.I18N).forEach((langKey) => {
+    if (window.UE.I18N[langKey]) {
+      loadedLanguagePacks[langKey] = window.UE.I18N[langKey]
+    }
+  })
+}
+
+function setActiveLanguagePack(lang) {
+  const normalizedLang = String(lang || '').toLowerCase()
+  const activePack = loadedLanguagePacks[normalizedLang]
+  const previousI18N =
+    window.UE && window.UE.I18N && typeof window.UE.I18N === 'object' ? window.UE.I18N : {}
+
+  if (window.UE) {
+    window.UE.I18N = activePack ? { [normalizedLang]: activePack } : {}
   }
-  return aliasMap[normalized] || normalized
+
+  return previousI18N
+}
+
+function restoreLanguagePacks(previousI18N) {
+  const merged = {
+    ...(previousI18N && typeof previousI18N === 'object' ? previousI18N : {}),
+    ...loadedLanguagePacks,
+  }
+  if (window.UE) {
+    window.UE.I18N = merged
+  }
 }
 
 export default {
@@ -348,6 +152,9 @@ export default {
       sourceEl: null,
       initialHtml: '',
       highlightTimer: null,
+      previewDialog: null,
+      previewVm: null,
+      previewBodyOverflow: '',
     }
   },
   watch: {
@@ -362,7 +169,7 @@ export default {
       }
       if (newVal === this.lastEmittedValue) return
       const next = typeof newVal === 'string' ? newVal : newVal == null ? '' : String(newVal)
-      const current = this.editor.getContent()
+      const current = this.normalizeEditorHtml(this.getRawEditorContent())
       if (next !== current) {
         this.editor.setContent(next, false)
       }
@@ -380,114 +187,30 @@ export default {
     await this.initEditor()
   },
   beforeDestroy() {
+    this.closePreviewDialog()
     this.destroyEditor()
   },
   methods: {
     isElementNode(node) {
-      return !!node && node.nodeType === 1
-    },
-    extractCodeText(node) {
-      if (!node) return ''
-      if (node.nodeType === 3) return node.nodeValue || ''
-      if (node.nodeType !== 1) return ''
-      const tagName = node.tagName ? node.tagName.toUpperCase() : ''
-      if (tagName === 'BR') return '\n'
-
-      let text = ''
-      const childNodes = node.childNodes ? Array.from(node.childNodes) : []
-      childNodes.forEach((childNode) => {
-        text += this.extractCodeText(childNode)
-      })
-      return text
+      return isElementNode(node)
     },
     restoreCopiedCodeBlocksHtml(html) {
-      if (typeof html !== 'string' || !html) return html
-      const div = document.createElement('div')
-      div.innerHTML = html
-
-      div.querySelectorAll('pre code').forEach((codeElement) => {
-        if (!this.isElementNode(codeElement)) return
-        const preElement = typeof codeElement.closest === 'function' ? codeElement.closest('pre') : null
-        const encodedRawCode =
-          codeElement.getAttribute('data-raw-code') ||
-          (this.isElementNode(preElement) ? preElement.getAttribute('data-raw-code') : '') ||
-          ''
-        if (!encodedRawCode) return
-
-        let rawText = ''
-        try {
-          rawText = decodeURIComponent(encodedRawCode)
-        } catch (error) {
-          rawText = ''
-        }
-        if (!rawText) return
-
-        const language = this.getCodeLanguageFromElement(codeElement)
-        codeElement.textContent = rawText
-        codeElement.className = language ? `language-${language}` : ''
-        codeElement.setAttribute('data-code-lang', language || '')
-        codeElement.removeAttribute('data-raw-code')
-
-        if (this.isElementNode(preElement)) {
-          preElement.className = language ? `language-${language}` : ''
-          preElement.setAttribute('data-code-lang', language || '')
-          preElement.removeAttribute('data-raw-code')
-        }
-      })
-
-      return div.innerHTML
+      return restoreCopiedCodeBlocksHtml(html)
     },
     getEditorDocument() {
       if (!this.editor || !this.editor.document) return null
       return this.editor.document
     },
     getCodeLanguageFromElement(codeElement) {
-      if (!this.isElementNode(codeElement)) return ''
-      const dataLang = codeElement.getAttribute('data-code-lang')
-      if (dataLang) return normalizeHighlightLanguage(dataLang)
-
-      const className = codeElement.className || ''
-      let match = String(className).match(/(?:^|\s)language-([^\s]+)/)
-      if (match && match[1]) return normalizeHighlightLanguage(match[1])
-
-      match = String(className).match(/brush:([^;]+)/)
-      return match && match[1] ? normalizeHighlightLanguage(match[1]) : ''
+      return getCodeLanguageFromElement(codeElement)
     },
     highlightCodeElement(codeElement) {
-      if (!this.isElementNode(codeElement)) return
-
-      const rawText = this.extractCodeText(codeElement)
-        .replace(/\u00a0/g, ' ')
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-      const language = this.getCodeLanguageFromElement(codeElement)
-      const preElement = typeof codeElement.closest === 'function' ? codeElement.closest('pre') : null
-
-      if (this.isElementNode(preElement)) {
-        preElement.setAttribute('data-code-lang', language || '')
-        preElement.className = language ? `language-${language}` : ''
-      }
-      codeElement.setAttribute('data-code-lang', language || '')
-      codeElement.textContent = rawText
-
-      if (!rawText) return
-
-      codeElement.className = language ? `language-${language}` : ''
-
-      if (language && hljs.getLanguage(language)) {
-        if (typeof hljs.highlightElement === 'function') {
-          hljs.highlightElement(codeElement)
-        } else if (typeof hljs.highlightBlock === 'function') {
-          hljs.highlightBlock(codeElement)
-        }
-      }
+      highlightCodeElement(codeElement)
     },
     highlightAllCodeBlocks() {
       const doc = this.getEditorDocument()
       if (!doc) return
-      doc.querySelectorAll('pre code').forEach((codeElement) => {
-        this.highlightCodeElement(codeElement)
-      })
+      highlightCodeBlocks(doc)
     },
     highlightCurrentCodeBlock() {
       const doc = this.getEditorDocument()
@@ -526,6 +249,134 @@ export default {
       if (!trimmed) return ''
       if (/^function\s*\(/.test(trimmed) || /^\(\s*function\s*\(/.test(trimmed)) return ''
       return value
+    },
+    normalizeEditorHtml(html) {
+      const next = typeof html === 'string' ? html : html == null ? '' : String(html)
+      return normalizeUeRichTextHtml(next)
+    },
+    getRawEditorContent() {
+      if (!this.editor || typeof this.editor.getContent !== 'function') return ''
+      return this.editor.getContent()
+    },
+    getPreviewContent(editor) {
+      if (typeof this.lastEmittedValue === 'string') {
+        return this.lastEmittedValue
+      }
+      if (typeof this.value === 'string') {
+        return this.value
+      }
+      if (this.value == null) {
+        const rawHtml = editor && typeof editor.getContent === 'function' ? editor.getContent() : ''
+        return this.normalizeEditorHtml(rawHtml)
+      }
+      return String(this.value)
+    },
+    getPreviewDialogTitle(editor) {
+      if (editor && typeof editor.getLang === 'function') {
+        try {
+          const title = editor.getLang('labelMap.preview')
+          if (title) return title
+        } catch (error) {}
+      }
+      return 'Preview'
+    },
+    getCloseDialogLabel(editor) {
+      if (editor && typeof editor.getLang === 'function') {
+        try {
+          const label = editor.getLang('closeDialog')
+          if (label) return label
+        } catch (error) {}
+      }
+      return 'Close dialog'
+    },
+    ensurePreviewDialog() {
+      if (this.previewDialog && document.body.contains(this.previewDialog)) {
+        return this.previewDialog
+      }
+
+      const dialog = document.createElement('div')
+      dialog.style.cssText = [
+        'position:fixed',
+        'inset:0',
+        'z-index:9999',
+        'display:none',
+      ].join(';')
+      dialog.innerHTML = `
+        <div data-role="mask" style="position:absolute;inset:0;background:rgba(15,23,42,0.45);"></div>
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:24px;box-sizing:border-box;">
+          <div style="display:flex;flex-direction:column;width:min(1100px,100%);height:min(85vh,100%);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,0.2);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5e7eb;font-size:16px;font-weight:600;color:#111827;">
+              <span data-role="title">Preview</span>
+              <button type="button" data-role="close" style="border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:#6b7280;">&times;</button>
+            </div>
+            <div data-role="content" class="ue-editor-preview__content" style="flex:1;min-height:0;overflow:auto;padding:24px;"></div>
+          </div>
+        </div>
+      `
+      dialog.addEventListener('click', (event) => {
+        const target = event.target
+        if (!(target instanceof Element)) return
+        if (target.getAttribute('data-role') === 'mask' || target.getAttribute('data-role') === 'close') {
+          this.closePreviewDialog()
+        }
+      })
+      document.body.appendChild(dialog)
+      this.previewDialog = dialog
+      return dialog
+    },
+    destroyPreviewInstance() {
+      if (!this.previewVm) return
+      this.previewVm.$destroy()
+      if (this.previewVm.$el && this.previewVm.$el.parentNode) {
+        this.previewVm.$el.parentNode.removeChild(this.previewVm.$el)
+      }
+      this.previewVm = null
+    },
+    openPreviewDialog(html, editor) {
+      const dialog = this.ensurePreviewDialog()
+      const contentEl = dialog.querySelector('[data-role="content"]')
+      const titleEl = dialog.querySelector('[data-role="title"]')
+      const closeBtn = dialog.querySelector('[data-role="close"]')
+      if (!(contentEl instanceof Element)) return
+      if (titleEl instanceof Element) {
+        titleEl.textContent = this.getPreviewDialogTitle(editor)
+      }
+      if (closeBtn instanceof HTMLButtonElement) {
+        closeBtn.setAttribute('aria-label', this.getCloseDialogLabel(editor))
+        closeBtn.title = this.getCloseDialogLabel(editor)
+      }
+
+      const nextHtml = typeof html === 'string' ? html : html == null ? '' : String(html)
+      this.destroyPreviewInstance()
+      contentEl.innerHTML = ''
+      const mountPoint = document.createElement('div')
+      contentEl.appendChild(mountPoint)
+      const PreviewCtor = Vue.extend(UeRichTextPreview)
+      this.previewVm = new PreviewCtor({
+        propsData: {
+          content: nextHtml,
+        },
+      })
+      this.previewVm.$mount(mountPoint)
+
+      if (!dialog.style.display || dialog.style.display === 'none') {
+        this.previewBodyOverflow = document.body.style.overflow || ''
+      }
+      document.body.style.overflow = 'hidden'
+      dialog.style.display = 'block'
+      document.addEventListener('keydown', this.handlePreviewKeydown)
+    },
+    closePreviewDialog() {
+      if (!this.previewDialog) return
+      this.previewDialog.style.display = 'none'
+      this.destroyPreviewInstance()
+      document.body.style.overflow = this.previewBodyOverflow || ''
+      document.removeEventListener('keydown', this.handlePreviewKeydown)
+    },
+    handlePreviewKeydown(event) {
+      if (event && event.key === 'Escape') {
+        this.closePreviewDialog()
+      }
     },
     ensureSourceElement() {
       if (this.sourceEl) return this.sourceEl
@@ -724,10 +575,14 @@ export default {
       if (typeof config.iframeCssUrl !== 'string') config.iframeCssUrl = ''
       if (typeof config.iframeJsUrl !== 'string') config.iframeJsUrl = ''
       if (typeof config.iframeCssStyles !== 'string') config.iframeCssStyles = ''
+      if (typeof config.lang !== 'string') config.lang = ''
+      if (typeof config.langPath !== 'string') config.langPath = ''
       if (!Array.isArray(config.iframeCssUrls)) config.iframeCssUrls = []
 
       config.iframeCssUrl = this.normalizeMaybeFunctionString(config.iframeCssUrl)
       config.iframeCssStyles = this.normalizeMaybeFunctionString(config.iframeCssStyles)
+      config.lang = this.lang
+      config.langPath = `${baseUrl}lang/`
       config.initialStyle = mergeStyleText(
         typeof config.initialStyle === 'string' ? config.initialStyle : '',
         UEDITOR_CODE_BLOCK_IFRAME_STYLES,
@@ -808,6 +663,7 @@ export default {
 
       const langFile = `${baseUrl}lang/${this.lang}/${this.lang}.js`
       await loadScriptOnce(langFile)
+      cacheLoadedLanguagePacks()
     },
     getFrameHeight() {
       if (typeof this.height === 'number' && Number.isFinite(this.height)) return this.height
@@ -829,6 +685,18 @@ export default {
         initialFrameHeight: this.getFrameHeight(),
         ...this.config,
       })
+      const userToolbarCallback =
+        typeof options.toolbarCallback === 'function' ? options.toolbarCallback : null
+      options.toolbarCallback = (cmd, editor) => {
+        if (userToolbarCallback && userToolbarCallback(cmd, editor) === true) {
+          return true
+        }
+        if (String(cmd).toLowerCase() === 'preview') {
+          this.openPreviewDialog(this.getPreviewContent(editor), editor)
+          return true
+        }
+        return false
+      }
       options.initialStyle = mergeStyleText(
         typeof options.initialStyle === 'string' ? options.initialStyle : '',
         UEDITOR_CODE_BLOCK_IFRAME_STYLES,
@@ -839,13 +707,17 @@ export default {
       if (typeof options.iframeCssStyles !== 'string') {
         options.iframeCssStyles = ''
       }
+      options.lang = this.lang
+      options.langPath = `${this.getUeditorBaseUrl()}lang/`
 
       window.UEDITOR_CONFIG = {
         ...(window.UEDITOR_CONFIG || {}),
         ...options,
       }
 
+      const previousI18N = setActiveLanguagePack(this.lang)
       this.editor = window.UE.getEditor(this.editorId, options)
+      restoreLanguagePacks(previousI18N)
       this.editor.ready(() => {
         this.ready = true
         const initial =
@@ -862,7 +734,7 @@ export default {
         this.scheduleHighlightAllCodeBlocks(30)
 
         this.editor.addListener('contentChange', () => {
-          const html = this.editor.getContent()
+          const html = this.normalizeEditorHtml(this.getRawEditorContent())
           this.lastEmittedValue = html
           this.$emit('input', html)
           this.$emit('change', html)
@@ -907,6 +779,12 @@ export default {
           clearTimeout(this.highlightTimer)
           this.highlightTimer = null
         }
+        this.destroyPreviewInstance()
+        if (this.previewDialog && this.previewDialog.parentNode) {
+          this.previewDialog.parentNode.removeChild(this.previewDialog)
+        }
+        document.removeEventListener('keydown', this.handlePreviewKeydown)
+        this.previewDialog = null
         if (this.editor && typeof this.editor.destroy === 'function') {
           this.editor.destroy()
         }
@@ -918,7 +796,7 @@ export default {
     },
     getContent() {
       if (!this.editor) return ''
-      return this.editor.getContent()
+      return this.normalizeEditorHtml(this.getRawEditorContent())
     },
     setContent(html, append = false) {
       if (!this.editor) return

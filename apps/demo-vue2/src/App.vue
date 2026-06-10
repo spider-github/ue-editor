@@ -19,18 +19,22 @@
       :upload-url="uploadUrl"
       :config="editorConfig"
     />
+    <UeRichTextPreview
+      :content="richContent"
+    />
     <h2>Rich Text Output</h2>
     <textarea :value="richContent" readonly />
   </div>
 </template>
 
 <script>
-import { UeEditor } from 'vue2-ueditor-plus-editor';
+import { UeEditor, UeRichTextPreview } from 'vue2-ueditor-plus-editor';
 
 export default {
   name: 'App',
   components: {
     UeEditor,
+    UeRichTextPreview,
   },
   data() {
     return {

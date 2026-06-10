@@ -5,8 +5,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import axios from 'axios'
 import { getToken } from '@/utils/auth'
+import UeRichTextPreview from '@/components/ue-rich-text-preview'
 import {
   buildUeRichTextRenderStyles,
   ensureUeRichTextLanguages,
@@ -14,6 +16,7 @@ import {
   highlightCodeBlocks,
   highlightCodeElement,
   isElementNode,
+  normalizeUeRichTextHtml,
   normalizeUeCodeLanguage,
   restoreCopiedCodeBlocksHtml,
 } from '@/components/ue-rich-text-preview/render'
@@ -24,6 +27,7 @@ const loadedResources = {
   css: false,
   scripts: {},
 }
+const loadedLanguagePacks = {}
 
 const UEDITOR_CODE_BLOCK_IFRAME_STYLES = buildUeRichTextRenderStyles('body')
 
@@ -68,6 +72,52 @@ function mergeStyleText(baseStyle, extraStyle) {
   return `${base}\n${extra}`
 }
 
+function buildScopedRenderStyles(scopeSelector) {
+  const scope = String(scopeSelector || '.ue-editor-preview__content').trim()
+  return `
+${scope} {
+  color: inherit;
+  background: transparent;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+${UEDITOR_CODE_BLOCK_IFRAME_STYLES.replace(/\bbody\b/g, scope)}
+`.trim()
+}
+
+function cacheLoadedLanguagePacks() {
+  if (!window.UE || !window.UE.I18N || typeof window.UE.I18N !== 'object') return
+  Object.keys(window.UE.I18N).forEach((langKey) => {
+    if (window.UE.I18N[langKey]) {
+      loadedLanguagePacks[langKey] = window.UE.I18N[langKey]
+    }
+  })
+}
+
+function setActiveLanguagePack(lang) {
+  const normalizedLang = String(lang || '').toLowerCase()
+  const activePack = loadedLanguagePacks[normalizedLang]
+  const previousI18N =
+    window.UE && window.UE.I18N && typeof window.UE.I18N === 'object' ? window.UE.I18N : {}
+
+  if (window.UE) {
+    window.UE.I18N = activePack ? { [normalizedLang]: activePack } : {}
+  }
+
+  return previousI18N
+}
+
+function restoreLanguagePacks(previousI18N) {
+  const merged = {
+    ...(previousI18N && typeof previousI18N === 'object' ? previousI18N : {}),
+    ...loadedLanguagePacks,
+  }
+  if (window.UE) {
+    window.UE.I18N = merged
+  }
+}
+
 export default {
   name: 'UeEditor',
   model: {
@@ -105,6 +155,9 @@ export default {
       sourceEl: null,
       initialHtml: '',
       highlightTimer: null,
+      previewDialog: null,
+      previewVm: null,
+      previewBodyOverflow: '',
     }
   },
   watch: {
@@ -119,7 +172,7 @@ export default {
       }
       if (newVal === this.lastEmittedValue) return
       const next = typeof newVal === 'string' ? newVal : newVal == null ? '' : String(newVal)
-      const current = this.editor.getContent()
+      const current = this.normalizeEditorHtml(this.getRawEditorContent())
       if (next !== current) {
         this.editor.setContent(next, false)
       }
@@ -137,6 +190,7 @@ export default {
     await this.initEditor()
   },
   beforeDestroy() {
+    this.closePreviewDialog()
     this.destroyEditor()
   },
   methods: {
@@ -218,6 +272,134 @@ export default {
       if (!trimmed) return ''
       if (/^function\s*\(/.test(trimmed) || /^\(\s*function\s*\(/.test(trimmed)) return ''
       return value
+    },
+    normalizeEditorHtml(html) {
+      const next = typeof html === 'string' ? html : html == null ? '' : String(html)
+      return normalizeUeRichTextHtml(next)
+    },
+    getRawEditorContent() {
+      if (!this.editor || typeof this.editor.getContent !== 'function') return ''
+      return this.editor.getContent()
+    },
+    getPreviewContent(editor) {
+      if (typeof this.lastEmittedValue === 'string') {
+        return this.lastEmittedValue
+      }
+      if (typeof this.value === 'string') {
+        return this.value
+      }
+      if (this.value == null) {
+        const rawHtml = editor && typeof editor.getContent === 'function' ? editor.getContent() : ''
+        return this.normalizeEditorHtml(rawHtml)
+      }
+      return String(this.value)
+    },
+    getPreviewDialogTitle(editor) {
+      if (editor && typeof editor.getLang === 'function') {
+        try {
+          const title = editor.getLang('labelMap.preview')
+          if (title) return title
+        } catch (error) {}
+      }
+      return 'Preview'
+    },
+    getCloseDialogLabel(editor) {
+      if (editor && typeof editor.getLang === 'function') {
+        try {
+          const label = editor.getLang('closeDialog')
+          if (label) return label
+        } catch (error) {}
+      }
+      return 'Close dialog'
+    },
+    ensurePreviewDialog() {
+      if (this.previewDialog && document.body.contains(this.previewDialog)) {
+        return this.previewDialog
+      }
+
+      const dialog = document.createElement('div')
+      dialog.style.cssText = [
+        'position:fixed',
+        'inset:0',
+        'z-index:9999',
+        'display:none',
+      ].join(';')
+      dialog.innerHTML = `
+        <div data-role="mask" style="position:absolute;inset:0;background:rgba(15,23,42,0.45);"></div>
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:24px;box-sizing:border-box;">
+          <div style="display:flex;flex-direction:column;width:min(1100px,100%);height:min(85vh,100%);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,0.2);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5e7eb;font-size:16px;font-weight:600;color:#111827;">
+              <span data-role="title">Preview</span>
+              <button type="button" data-role="close" style="border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:#6b7280;">&times;</button>
+            </div>
+            <div data-role="content" class="ue-editor-preview__content" style="flex:1;min-height:0;overflow:auto;padding:24px;"></div>
+          </div>
+        </div>
+      `
+      dialog.addEventListener('click', (event) => {
+        const target = event.target
+        if (!(target instanceof Element)) return
+        if (target.getAttribute('data-role') === 'mask' || target.getAttribute('data-role') === 'close') {
+          this.closePreviewDialog()
+        }
+      })
+      document.body.appendChild(dialog)
+      this.previewDialog = dialog
+      return dialog
+    },
+    destroyPreviewInstance() {
+      if (!this.previewVm) return
+      this.previewVm.$destroy()
+      if (this.previewVm.$el && this.previewVm.$el.parentNode) {
+        this.previewVm.$el.parentNode.removeChild(this.previewVm.$el)
+      }
+      this.previewVm = null
+    },
+    openPreviewDialog(html, editor) {
+      const dialog = this.ensurePreviewDialog()
+      const contentEl = dialog.querySelector('[data-role="content"]')
+      const titleEl = dialog.querySelector('[data-role="title"]')
+      const closeBtn = dialog.querySelector('[data-role="close"]')
+      if (!(contentEl instanceof Element)) return
+      if (titleEl instanceof Element) {
+        titleEl.textContent = this.getPreviewDialogTitle(editor)
+      }
+      if (closeBtn instanceof HTMLButtonElement) {
+        closeBtn.setAttribute('aria-label', this.getCloseDialogLabel(editor))
+        closeBtn.title = this.getCloseDialogLabel(editor)
+      }
+
+      const nextHtml = typeof html === 'string' ? html : html == null ? '' : String(html)
+      this.destroyPreviewInstance()
+      contentEl.innerHTML = ''
+      const mountPoint = document.createElement('div')
+      contentEl.appendChild(mountPoint)
+      const PreviewCtor = Vue.extend(UeRichTextPreview)
+      this.previewVm = new PreviewCtor({
+        propsData: {
+          content: nextHtml,
+        },
+      })
+      this.previewVm.$mount(mountPoint)
+
+      if (!dialog.style.display || dialog.style.display === 'none') {
+        this.previewBodyOverflow = document.body.style.overflow || ''
+      }
+      document.body.style.overflow = 'hidden'
+      dialog.style.display = 'block'
+      document.addEventListener('keydown', this.handlePreviewKeydown)
+    },
+    closePreviewDialog() {
+      if (!this.previewDialog) return
+      this.previewDialog.style.display = 'none'
+      this.destroyPreviewInstance()
+      document.body.style.overflow = this.previewBodyOverflow || ''
+      document.removeEventListener('keydown', this.handlePreviewKeydown)
+    },
+    handlePreviewKeydown(event) {
+      if (event && event.key === 'Escape') {
+        this.closePreviewDialog()
+      }
     },
     ensureSourceElement() {
       if (this.sourceEl) return this.sourceEl
@@ -394,6 +576,12 @@ export default {
       if (typeof window.UEDITOR_CONFIG.iframeCssStyles !== 'string') {
         window.UEDITOR_CONFIG.iframeCssStyles = ''
       }
+      if (typeof window.UEDITOR_CONFIG.lang !== 'string') {
+        window.UEDITOR_CONFIG.lang = ''
+      }
+      if (typeof window.UEDITOR_CONFIG.langPath !== 'string') {
+        window.UEDITOR_CONFIG.langPath = ''
+      }
       if (!Array.isArray(window.UEDITOR_CONFIG.iframeCssUrls)) {
         window.UEDITOR_CONFIG.iframeCssUrls = []
       }
@@ -403,6 +591,8 @@ export default {
       window.UEDITOR_CONFIG.iframeCssStyles = this.normalizeMaybeFunctionString(
         window.UEDITOR_CONFIG.iframeCssStyles,
       )
+      window.UEDITOR_CONFIG.lang = this.lang
+      window.UEDITOR_CONFIG.langPath = `${baseUrl}lang/`
       window.UEDITOR_CONFIG.initialStyle = mergeStyleText(
         typeof window.UEDITOR_CONFIG.initialStyle === 'string'
           ? window.UEDITOR_CONFIG.initialStyle
@@ -553,6 +743,7 @@ export default {
 
       const langFile = `${baseUrl}lang/${this.lang}/${this.lang}.js`
       await loadScriptOnce(langFile)
+      cacheLoadedLanguagePacks()
     },
     getFrameHeight() {
       if (typeof this.height === 'number' && Number.isFinite(this.height)) return this.height
@@ -574,6 +765,18 @@ export default {
         initialFrameHeight: this.getFrameHeight(),
         ...this.config,
       })
+      const userToolbarCallback =
+        typeof options.toolbarCallback === 'function' ? options.toolbarCallback : null
+      options.toolbarCallback = (cmd, editor) => {
+        if (userToolbarCallback && userToolbarCallback(cmd, editor) === true) {
+          return true
+        }
+        if (String(cmd).toLowerCase() === 'preview') {
+          this.openPreviewDialog(this.getPreviewContent(editor), editor)
+          return true
+        }
+        return false
+      }
       options.initialStyle = mergeStyleText(
         typeof options.initialStyle === 'string' ? options.initialStyle : '',
         UEDITOR_CODE_BLOCK_IFRAME_STYLES,
@@ -584,8 +787,12 @@ export default {
       if (typeof options.iframeCssStyles !== 'string') {
         options.iframeCssStyles = ''
       }
+      options.lang = this.lang
+      options.langPath = `${this.getUeditorBaseUrl()}lang/`
 
+      const previousI18N = setActiveLanguagePack(this.lang)
       this.editor = window.UE.getEditor(this.editorId, options)
+      restoreLanguagePacks(previousI18N)
       this.editor.ready(() => {
         this.ready = true
         const initial =
@@ -602,7 +809,7 @@ export default {
         this.scheduleHighlightAllCodeBlocks(30)
 
         this.editor.addListener('contentChange', () => {
-          const html = this.editor.getContent()
+          const html = this.normalizeEditorHtml(this.getRawEditorContent())
           this.lastEmittedValue = html
           this.$emit('input', html)
           this.$emit('change', html)
@@ -647,6 +854,12 @@ export default {
           clearTimeout(this.highlightTimer)
           this.highlightTimer = null
         }
+        this.destroyPreviewInstance()
+        if (this.previewDialog && this.previewDialog.parentNode) {
+          this.previewDialog.parentNode.removeChild(this.previewDialog)
+        }
+        document.removeEventListener('keydown', this.handlePreviewKeydown)
+        this.previewDialog = null
         if (this.editor && typeof this.editor.destroy === 'function') {
           this.editor.destroy()
         }
@@ -658,7 +871,7 @@ export default {
     },
     getContent() {
       if (!this.editor) return ''
-      return this.editor.getContent()
+      return this.normalizeEditorHtml(this.getRawEditorContent())
     },
     setContent(html, append = false) {
       if (!this.editor) return

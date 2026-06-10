@@ -18,18 +18,23 @@ npx vue2-ueditor-plus-editor copy-assets public/static/ueditor-plus
 
 ```js
 import Vue from 'vue'
-import UeEditor from 'vue2-ueditor-plus-editor'
+import UeEditor, { UeRichTextPreview } from 'vue2-ueditor-plus-editor'
 import 'vue2-ueditor-plus-editor/style.css'
 
 Vue.use(UeEditor)
+
+Vue.component('UeRichTextPreview', UeRichTextPreview)
 ```
 
 ```vue
 <template>
-  <UeEditor
-    v-model="content"
-    base-url="/static/ueditor-plus/"
-    upload-url="/api/upload"
-  />
+  <div>
+    <UeEditor
+      v-model="content"
+      base-url="/static/ueditor-plus/"
+      upload-url="/api/upload"
+    />
+    <UeRichTextPreview :content="content" />
+  </div>
 </template>
 ```
